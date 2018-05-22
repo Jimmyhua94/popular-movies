@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Popular Movies</string>
+    <string name="poster_image_description">Movie Poster</string>
+    <string name="movie_title">Movie Title</string>
+    <string name="movie_release">Release Date</string>
+    <string name="movie_rating">Rating</string>
+    <string name="movie_detail">Details</string>
+    <string name="sort_order">Sort Order</string>
+    <string name="popular">Most Popular</string>
+    <string name="rated">Top Rated</string>
+    <string name="refresh">Refresh</string>
+    <string name="already_sorted">Already Sorted</string>
+    <string name="page_load">Additional page loaded</string>
+    <string name="movie_detail_error">Failed to get movie details</string>
+    <string name="network_error">Network connection unavailable</string>
+</resources>

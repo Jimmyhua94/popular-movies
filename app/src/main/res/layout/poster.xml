@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <android.support.constraint.ConstraintLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@android:color/darker_gray"
+        android:padding="@dimen/poster_padding">
+
+        <TextView
+            android:id="@+id/poster_tv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_marginLeft="16dp"
+            android:layout_marginRight="16dp"
+            android:layout_marginStart="16dp"
+            tools:text="@string/movie_title"
+            android:gravity="center"
+            app:layout_constraintBottom_toBottomOf="@+id/poster_iv"
+            app:layout_constraintEnd_toEndOf="@+id/poster_iv"
+            app:layout_constraintStart_toStartOf="@+id/poster_iv"
+            app:layout_constraintTop_toTopOf="@+id/poster_iv" />
+
+        <ImageView
+            android:id="@+id/poster_iv"
+            android:layout_width="@dimen/poster_width"
+            android:layout_height="@dimen/poster_height"
+            android:contentDescription="@string/poster_image_description" />
+
+    </android.support.constraint.ConstraintLayout>
+
+</FrameLayout>
