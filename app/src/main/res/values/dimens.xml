@@ -4,4 +4,6 @@
     <dimen name="poster_width">150dp</dimen>
     <dimen name="poster_height">224dp</dimen>
     <dimen name="poster_padding">10dp</dimen>
+    <dimen name="margin">16dp</dimen>
+    <dimen name="margin_sub">8dp</dimen>
 </resources>

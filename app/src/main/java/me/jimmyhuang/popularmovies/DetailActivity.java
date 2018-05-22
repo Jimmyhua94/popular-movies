@@ -12,6 +12,7 @@ import android.widget.Toast;
 import com.squareup.picasso.Picasso;
 
 import me.jimmyhuang.popularmovies.model.Movie;
+import me.jimmyhuang.popularmovies.utility.PosterAdapter;
 
 import static me.jimmyhuang.popularmovies.utility.NetworkUtil.buildPosterUrl;
 
@@ -25,7 +26,7 @@ public class DetailActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.poster_detail);
+        setContentView(R.layout.activity_detail);
 
         mPosterImage = findViewById(R.id.detail_poster_iv);
         mTitleText = findViewById(R.id.detail_title_tv);
@@ -35,8 +36,8 @@ public class DetailActivity extends AppCompatActivity {
 
         Intent intent = getIntent();
 
-        if (intent.hasExtra("MovieObject")) {
-            Movie movie = intent.getParcelableExtra("MovieObject");
+        if (intent.hasExtra(PosterAdapter.MOVIE_INTENT_EXTRA)) {
+            Movie movie = intent.getParcelableExtra(PosterAdapter.MOVIE_INTENT_EXTRA);
 
             if (movie != null) {
                 String posterUrl = movie.getPosterPath();
