@@ -24,6 +24,9 @@ import static me.jimmyhuang.popularmovies.utility.NetworkUtil.buildPosterUrl;
 
 
 public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterViewHolder> {
+
+    public static final String MOVIE_INTENT_EXTRA = "MovieObject";
+
     private final View.OnClickListener mOnClickListener = new PosterClickListener();
 
     private RecyclerView mRecyclerView;
@@ -59,7 +62,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
         Context context = parent.getContext();
         LayoutInflater inflater = LayoutInflater.from(context);
 
-        View view = inflater.inflate(R.layout.poster, parent, false);
+        View view = inflater.inflate(R.layout.adapter_poster, parent, false);
 
         view.setOnClickListener(mOnClickListener);
 
@@ -68,7 +71,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
 
     @Override
     public void onBindViewHolder(@NonNull PosterViewHolder holder, int position) {
-        holder.bind(position);  //replace position with url
+        holder.bind(position);
     }
 
     @Override
@@ -111,7 +114,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
             Movie movie = mMovies.get(position);
 
             Intent intent = new Intent(context, DetailActivity.class);
-            intent.putExtra("MovieObject", movie);
+            intent.putExtra(MOVIE_INTENT_EXTRA, movie);
             context.startActivity(intent);
         }
     }

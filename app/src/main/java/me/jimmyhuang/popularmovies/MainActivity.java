@@ -8,7 +8,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewTreeObserver;
@@ -30,25 +29,27 @@ import static me.jimmyhuang.popularmovies.utility.JsonUtil.parseDiscoverTotalPag
 public class MainActivity extends AppCompatActivity {
 
     private final int NUM_POSTERS = 20;
+    private final int POSTER_SPACING = 10;
+    private final int POSTER_SPAN = 1;  // Value doesn't matter, gets auto detected
     private RecyclerView mPosters;
     private PosterAdapter mAdapter;
     private final List<Movie> mMovies = new ArrayList<>();
-    private int sortOrder;
+    private int mSortOrder;
 
-    private int page = 1;
-    private int totalPages = 0;
+    private int mPage = 1;
+    private int mTotalPages = 0;
 
-    private boolean loading = true;
+    private boolean mLoading = true;
 
-    private Menu menu;
+    private Menu mMenu;
 
-    private boolean failedPageAdd = false;
+    private boolean mFailedPageAdd = false;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        this.menu = menu;
+        mMenu = menu;
         getMenuInflater().inflate(R.menu.main, menu);
-        menu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(sortOrder));
+        menu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
         hasNetwork();
         return true;
     }
@@ -61,13 +62,13 @@ public class MainActivity extends AppCompatActivity {
         switch (itemId) {
             case R.id.menu_rated:
                 int ratedId = R.string.rated;
-                if (sortOrder != ratedId && hasNetwork()) {
-                    sortOrder = ratedId;
-                    menu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(sortOrder));
+                if (mSortOrder != ratedId && hasNetwork()) {
+                    mSortOrder = ratedId;
+                    mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
 
-                    page = 1;
+                    mPage = 1;
 
-                    URL ratedMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+                    URL ratedMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
                     new SwitchMoviePosterTask().execute(ratedMovieUrl);
                 } else {
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
@@ -75,13 +76,13 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.menu_popular:
                 int popularId = R.string.popular;
-                if (sortOrder != popularId && hasNetwork()) {
-                    sortOrder = popularId;
-                    menu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(sortOrder));
+                if (mSortOrder != popularId && hasNetwork()) {
+                    mSortOrder = popularId;
+                    mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
 
-                    page = 1;
+                    mPage = 1;
 
-                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
                     new SwitchMoviePosterTask().execute(popularMovieUrl);
                 } else {
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
@@ -89,16 +90,16 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.menu_refresh:
                 if (hasNetwork()) {
-                    if (failedPageAdd) {
-                        page++;
+                    if (mFailedPageAdd) {
+                        mPage++;
 
-                        URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+                        URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
                         new MoviePosterTask().execute(popularMovieUrl);
                         Toast.makeText(this, getResources().getString(R.string.page_load), Toast.LENGTH_SHORT).show();
                     } else {
-                        page = 1;
+                        mPage = 1;
 
-                        URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+                        URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
                         new SwitchMoviePosterTask().execute(popularMovieUrl);
                     }
                 }
@@ -111,33 +112,34 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        sortOrder = R.string.popular;
+        mSortOrder = R.string.popular;
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         mPosters = findViewById(R.id.poster_rv);
 
-        PosterItemDecoration posterDecoration = new PosterItemDecoration(10);
+        PosterItemDecoration posterDecoration = new PosterItemDecoration(POSTER_SPACING);
         mPosters.addItemDecoration(posterDecoration);
 
-        final GridLayoutManager layoutManager = new GridLayoutManager(this, 1);
+        final GridLayoutManager layoutManager = new GridLayoutManager(this, POSTER_SPAN);
         mPosters.setLayoutManager(layoutManager);
 
         // https://stackoverflow.com/questions/4142090/how-to-retrieve-the-dimensions-of-a-view/4406090#4406090
         mPosters.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                layoutManager.setSpanCount(mPosters.getWidth() / dpToPx(150));
+                float width = getResources().getDimension(R.dimen.poster_width);
+                layoutManager.setSpanCount(mPosters.getWidth() / (int) width);
             }
         });
 
         mPosters.setItemViewCacheSize(NUM_POSTERS);
 
         if (hasNetwork()) {
-            page = 1;
+            mPage = 1;
 
-            URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+            URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
             new MoviePosterTask().execute(popularMovieUrl);
         }
 
@@ -149,18 +151,17 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 if (dy > 0) {
-                    if (!loading) {
+                    if (!mLoading) {
                         int visibleItemCount = layoutManager.getChildCount();
                         int totalItemCount = layoutManager.getItemCount();
                         int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
                         if (lastVisibleItem >= totalItemCount - visibleItemCount ) {
-                            if (page + 1 <= totalPages && hasNetwork() && !failedPageAdd) {
-                                page++;
-                                URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(sortOrder, page);
+                            if (mPage + 1 <= mTotalPages && hasNetwork() && !mFailedPageAdd) {
+                                mPage++;
+                                URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
                                 new MoviePosterTask().execute(popularMovieUrl);
-//                                Toast.makeText(MainActivity.this, "Page: " + page, Toast.LENGTH_SHORT).show();
                             } else {
-                                failedPageAdd = true;
+                                mFailedPageAdd = true;
                             }
                         }
                     }
@@ -177,10 +178,10 @@ public class MainActivity extends AppCompatActivity {
             URL movieApiUrl = urls[0];
             String results = null;
             try {
-                loading = true;
+                mLoading = true;
                 results = NetworkUtil.getResponseFromHttpUrl(movieApiUrl);
             } catch (IOException e) {
-                loading = false;
+                mLoading = false;
                 e.printStackTrace();
             }
             return results;
@@ -188,10 +189,10 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(String s) {
-            loading = false;
+            mLoading = false;
             if (s != null && !s.equals("")) {
-                failedPageAdd = false;
-                if (totalPages == 0) totalPages = parseDiscoverTotalPagesJson(s);
+                mFailedPageAdd = false;
+                if (mTotalPages == 0) mTotalPages = parseDiscoverTotalPagesJson(s);
                 List<Movie> movieList = parseDiscoverJson(s);
                 if (movieList != null) {
                     mMovies.clear();
@@ -211,10 +212,10 @@ public class MainActivity extends AppCompatActivity {
             URL movieApiUrl = urls[0];
             String results = null;
             try {
-                loading = true;
+                mLoading = true;
                 results = NetworkUtil.getResponseFromHttpUrl(movieApiUrl);
             } catch (IOException e) {
-                loading = false;
+                mLoading = false;
                 e.printStackTrace();
             }
             return results;
@@ -222,10 +223,10 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(String s) {
-            loading = false;
+            mLoading = false;
             if (s != null && !s.equals("")) {
-                failedPageAdd = false;
-                if (totalPages == 0) totalPages = parseDiscoverTotalPagesJson(s);
+                mFailedPageAdd = false;
+                if (mTotalPages == 0) mTotalPages = parseDiscoverTotalPagesJson(s);
                 List<Movie> movieList = parseDiscoverJson(s);
                 if (movieList != null) {
                     mMovies.addAll(movieList);
@@ -234,11 +235,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-    }
-
-    // https://stackoverflow.com/questions/29664993/how-to-convert-dp-px-sp-among-each-other-especially-dp-and-sp
-    private int dpToPx(float dp) {
-        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, this.getResources().getDisplayMetrics());
     }
 
     // https://developer.android.com/training/monitoring-device-state/connectivity-monitoring
@@ -256,12 +252,12 @@ public class MainActivity extends AppCompatActivity {
 
         if (!hasConnection) {
             Toast.makeText(MainActivity.this,getResources().getString(R.string.network_error), Toast.LENGTH_LONG).show();
-            if (menu != null) {
-                menu.findItem(R.id.menu_refresh).setVisible(true);
+            if (mMenu != null) {
+                mMenu.findItem(R.id.menu_refresh).setVisible(true);
             }
         } else {
-            if (menu != null) {
-                menu.findItem(R.id.menu_refresh).setVisible(false);
+            if (mMenu != null) {
+                mMenu.findItem(R.id.menu_refresh).setVisible(false);
             }
         }
 
