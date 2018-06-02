@@ -7,8 +7,61 @@ import java.util.ArrayList;
 import java.util.List;
 
 import me.jimmyhuang.popularmovies.model.Movie;
+import me.jimmyhuang.popularmovies.model.Review;
+import me.jimmyhuang.popularmovies.model.Trailer;
 
 public class JsonUtil {
+
+    public static List<Trailer> parseTrailerJson(String json) {
+        try {
+            List<Trailer> trailerArray = new ArrayList<>();
+
+            JSONObject trailersObject = new JSONObject(json);
+
+            JSONArray resultsObject = trailersObject.optJSONArray("results");
+
+            for (int i = 0; i < resultsObject.length(); i++) {
+                JSONObject reviewObject = resultsObject.getJSONObject(i);
+
+                String key = reviewObject.optString("key", "");
+                String name = reviewObject.optString("name", "");
+                String site = reviewObject.optString("name", "");
+
+                Trailer trailer = new Trailer(key, name, site);
+
+                trailerArray.add(trailer);
+            }
+
+            return trailerArray;
+        } catch (Exception e){
+            return null;
+        }
+    }
+
+    public static List<Review> parseReviewJson(String json) {
+        try {
+            List<Review> reviewArray = new ArrayList<>();
+
+            JSONObject reviewsObject = new JSONObject(json);
+
+            JSONArray resultsObject = reviewsObject.optJSONArray("results");
+
+            for (int i = 0; i < resultsObject.length(); i++) {
+                JSONObject reviewObject = resultsObject.getJSONObject(i);
+
+                String author = reviewObject.optString("author", "");
+                String content = reviewObject.optString("content", "");
+
+                Review review = new Review(author, content);
+
+                reviewArray.add(review);
+            }
+
+            return reviewArray;
+        } catch (Exception e){
+            return null;
+        }
+    }
 
     public static List<Movie> parseDiscoverJson(String json) {
         try {

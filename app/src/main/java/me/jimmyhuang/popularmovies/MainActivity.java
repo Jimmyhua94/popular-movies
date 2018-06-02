@@ -4,10 +4,16 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewTreeObserver;
@@ -26,7 +32,13 @@ import me.jimmyhuang.popularmovies.utility.PosterItemDecoration;
 import static me.jimmyhuang.popularmovies.utility.JsonUtil.parseDiscoverJson;
 import static me.jimmyhuang.popularmovies.utility.JsonUtil.parseDiscoverTotalPagesJson;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String> {
+
+    private static final String SORTING_ORDER = "sorting";
+
+    private static final int DISCOVER_MOVIE_LOADER = 25;
+
+    private static final String INITIAL_DISCOVER_URL_EXTRA = "discoverExtra";
 
     private final int NUM_POSTERS = 20;
     private final int POSTER_SPACING = 10;
@@ -44,6 +56,12 @@ public class MainActivity extends AppCompatActivity {
     private Menu mMenu;
 
     private boolean mFailedPageAdd = false;
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(SORTING_ORDER, mSortOrder);
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -112,7 +130,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        mSortOrder = R.string.popular;
+        if (savedInstanceState != null) {
+            mSortOrder = savedInstanceState.getInt(SORTING_ORDER);
+        } else {
+            mSortOrder = R.string.popular;
+        }
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -140,7 +162,19 @@ public class MainActivity extends AppCompatActivity {
             mPage = 1;
 
             URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
-            new MoviePosterTask().execute(popularMovieUrl);
+//            new MoviePosterTask().execute(popularMovieUrl);
+
+            Bundle discoverBundle = new Bundle();
+            discoverBundle.putString(INITIAL_DISCOVER_URL_EXTRA, popularMovieUrl.toString());
+
+            LoaderManager loaderManager = getSupportLoaderManager();
+            Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+
+            if (discoverMovieLoader == null) {
+                loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, this).onContentChanged();;
+            } else {
+                loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, this).onContentChanged();;
+            }
         }
 
         mAdapter = new PosterAdapter(mMovies);
@@ -169,6 +203,65 @@ public class MainActivity extends AppCompatActivity {
                 super.onScrolled(recyclerView, dx, dy);
             }
         });
+    }
+
+    // https://stackoverflow.com/questions/10524667/android-asynctaskloader-doesnt-start-loadinbackground
+    @NonNull
+    @Override
+    public Loader<String> onCreateLoader(int id, @Nullable final Bundle args) {
+        return new AsyncTaskLoader<String>(this) {
+            @Override
+            protected void onStartLoading() {
+                super.onStartLoading();
+                if (args == null) {
+                    return;
+                }
+                if (takeContentChanged()) {
+                    forceLoad();
+                }
+            }
+            @Override
+            public String loadInBackground() {
+                String discoverUrlString = args.getString(INITIAL_DISCOVER_URL_EXTRA);
+                if (discoverUrlString == null || TextUtils.isEmpty(discoverUrlString)) {
+                    return null;
+                }
+                try {
+                    mLoading = true;
+                    URL discoveryUrl = new URL(discoverUrlString);
+                    return NetworkUtil.getResponseFromHttpUrl(discoveryUrl);
+                } catch (IOException e) {
+                    mLoading = false;
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+            @Override
+            protected void onStopLoading() {
+                cancelLoad();
+            }
+        };
+    }
+
+    @Override
+    public void onLoadFinished(@NonNull Loader<String> loader, String data) {
+        mLoading = false;
+        if (data != null && !data.equals("")) {
+            mFailedPageAdd = false;
+            if (mTotalPages == 0) mTotalPages = parseDiscoverTotalPagesJson(data);
+            List<Movie> movieList = parseDiscoverJson(data);
+            if (movieList != null) {
+                mMovies.clear();
+                mMovies.addAll(movieList);
+                mAdapter.notifyDataSetChanged();
+                mPosters.scrollToPosition(0);
+            }
+        }
+    }
+
+    @Override
+    public void onLoaderReset(@NonNull Loader<String> loader) {
+
     }
 
     private class SwitchMoviePosterTask extends AsyncTask<URL, Void, String> {

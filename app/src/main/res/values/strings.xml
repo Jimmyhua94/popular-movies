@@ -13,4 +13,5 @@
     <string name="page_load">Additional page loaded</string>
     <string name="movie_detail_error">Failed to get movie details</string>
     <string name="network_error">Network connection unavailable</string>
+    <string name="video_error">No available application to open video</string>
 </resources>
