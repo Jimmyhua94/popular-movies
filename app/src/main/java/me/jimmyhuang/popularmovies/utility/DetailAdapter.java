@@ -1,9 +1,11 @@
 package me.jimmyhuang.popularmovies.utility;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
@@ -11,6 +13,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -21,6 +24,8 @@ import java.util.List;
 
 import me.jimmyhuang.popularmovies.MainActivity;
 import me.jimmyhuang.popularmovies.R;
+import me.jimmyhuang.popularmovies.data.FavoritesContract;
+import me.jimmyhuang.popularmovies.data.FavoritesDbHelper;
 import me.jimmyhuang.popularmovies.model.Movie;
 import me.jimmyhuang.popularmovies.model.Review;
 import me.jimmyhuang.popularmovies.model.Trailer;
@@ -111,6 +116,9 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         private TextView mReleaseText;
         private TextView mRatingText;
         private TextView mOverviewText;
+        private Button mFavoritesButton;
+
+        private SQLiteDatabase mDb;
 
         public MovieViewHolder(View itemView) {
             super(itemView);
@@ -120,9 +128,13 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             mReleaseText = itemView.findViewById(R.id.detail_release_tv);
             mRatingText = itemView.findViewById(R.id.detail_rating_tv);
             mOverviewText = itemView.findViewById(R.id.detail_overview_tv);
+            mFavoritesButton = itemView.findViewById(R.id.favorites_button);
+
+            FavoritesDbHelper dbHelper = new FavoritesDbHelper(itemView.getContext());
+            mDb = dbHelper.getWritableDatabase();
         }
 
-        public void bind(Movie movie) {
+        public void bind(final Movie movie) {
             String posterUrl = movie.getPosterPath();
             if (!posterUrl.isEmpty()) {
 
@@ -140,6 +152,24 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             mReleaseText.setText(movie.getReleaseDate());
             mRatingText.setText(String.valueOf(movie.getVoteAverage()));
             mOverviewText.setText(movie.getOverview());
+
+            mFavoritesButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    addToFavorites(movie);
+                }
+            });
+        }
+
+        private long addToFavorites(Movie movie) {
+            ContentValues cv = new ContentValues();
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_ID, movie.getId());
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_TITLE, movie.getTitle());
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_OVERVIEW, movie.getOverview());
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_RELEASE_DATE, movie.getReleaseDate());
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_VOTE_AVG, movie.getVoteAverage());
+            cv.put(FavoritesContract.FavoritesEntry.COLUMN_POSTER_PATH, movie.getPosterPath());
+            return mDb.insert(FavoritesContract.FavoritesEntry.TABLE_NAME, null, cv);
         }
     }
 
