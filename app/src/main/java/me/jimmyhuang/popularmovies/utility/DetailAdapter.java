@@ -171,6 +171,11 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_POSTER_PATH, movie.getPosterPath());
             return mDb.insert(FavoritesContract.FavoritesEntry.TABLE_NAME, null, cv);
         }
+
+        private boolean removeFromFavorites(Movie movie) {
+            return mDb.delete(FavoritesContract.FavoritesEntry.TABLE_NAME,
+                    FavoritesContract.FavoritesEntry.COLUMN_ID + "=" + movie.getId(), null) > 0;
+        }
     }
 
     private class TrailerViewHolder extends RecyclerView.ViewHolder {

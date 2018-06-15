@@ -1,6 +1,5 @@
 package me.jimmyhuang.popularmovies;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -189,6 +188,45 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private RecyclerView.OnScrollListener rvScrollListener(RecyclerView.LayoutManager layoutManager) {
+        return new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                if (dy > 0) {
+                    if (!mLoading) {
+                        int visibleItemCount = layoutManager.getChildCount();
+                        int totalItemCount = layoutManager.getItemCount();
+                        int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
+                        if (lastVisibleItem >= totalItemCount - visibleItemCount ) {
+                            if (mPage + 1 <= mTotalPages && hasNetwork() && !mFailedPageAdd) {
+                                if (hasNetwork()) {
+                                    mPage++;
+
+                                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+
+                                    Bundle discoverBundle = new Bundle();
+                                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
+
+                                    LoaderManager loaderManager = getSupportLoaderManager();
+                                    Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+
+                                    if (discoverMovieLoader == null) {
+                                        loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                    } else {
+                                        loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                    }
+                                }
+                            } else {
+                                mFailedPageAdd = true;
+                            }
+                        }
+                    }
+                }
+                super.onScrolled(recyclerView, dx, dy);
+            }
+        };
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -368,42 +406,7 @@ public class MainActivity extends AppCompatActivity {
 
         mPosters.setAdapter(mAdapter);
 
-        mPosters.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                if (dy > 0) {
-                    if (!mLoading) {
-                        int visibleItemCount = layoutManager.getChildCount();
-                        int totalItemCount = layoutManager.getItemCount();
-                        int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
-                        if (lastVisibleItem >= totalItemCount - visibleItemCount ) {
-                            if (mPage + 1 <= mTotalPages && hasNetwork() && !mFailedPageAdd) {
-                                if (hasNetwork()) {
-                                    mPage++;
-
-                                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
-
-                                    Bundle discoverBundle = new Bundle();
-                                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
-
-                                    LoaderManager loaderManager = getSupportLoaderManager();
-                                    Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
-
-                                    if (discoverMovieLoader == null) {
-                                        loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                                    } else {
-                                        loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                                    }
-                                }
-                            } else {
-                                mFailedPageAdd = true;
-                            }
-                        }
-                    }
-                }
-                super.onScrolled(recyclerView, dx, dy);
-            }
-        });
+        mPosters.addOnScrollListener(rvScrollListener(layoutManager));
     }
 
     // https://developer.android.com/training/monitoring-device-state/connectivity-monitoring
@@ -420,7 +423,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (!hasConnection) {
-            Toast.makeText(MainActivity.this,getResources().getString(R.string.network_error), Toast.LENGTH_LONG).show();
+            Toast.makeText(this,getResources().getString(R.string.network_error), Toast.LENGTH_LONG).show();
             if (mMenu != null) {
                 mMenu.findItem(R.id.menu_refresh).setVisible(true);
             }
