@@ -20,6 +20,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".DetailActivity"/>
+        <provider
+            android:name="me.jimmyhuang.popularmovies.data.FavoritesContentProvider"
+            android:authorities="me.jimmyhuang.popularmovies"
+            android:exported="false"/>
     </application>
 
 </manifest>

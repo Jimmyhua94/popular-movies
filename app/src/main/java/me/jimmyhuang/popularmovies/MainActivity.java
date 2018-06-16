@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewTreeObserver;
@@ -41,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int DISCOVER_MOVIE_LOADER = 20;
     private static final int SWITCH_MOVIE_LOADER = 21;
+    private static final int FAVORITES_MOVIE_LOADER = 22;
 
     private static final String DISCOVER_URL_EXTRA = "discoverExtra";
     private static final String SWITCH_URL_EXTRA = "switchExtra";
@@ -53,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private PosterAdapter mAdapter;
     private final List<Movie> mMovies = new ArrayList<>();
     private int mSortOrder;
+    private int mPrevSortOrder;
 
     private int mPage = 1;
     private int mTotalPages = 0;
@@ -62,9 +65,9 @@ public class MainActivity extends AppCompatActivity {
 
     private Menu mMenu;
 
-    private SQLiteDatabase mDb;
-
     private Context mContext;
+
+    private LoaderManager mLoaderManager;
 
     private LoaderManager.LoaderCallbacks<String> discoverLoaderListener = new LoaderManager.LoaderCallbacks<String>() {
         // https://stackoverflow.com/questions/10524667/android-asynctaskloader-doesnt-start-loadinbackground
@@ -188,44 +191,89 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    private RecyclerView.OnScrollListener rvScrollListener(RecyclerView.LayoutManager layoutManager) {
-        return new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                if (dy > 0) {
-                    if (!mLoading) {
-                        int visibleItemCount = layoutManager.getChildCount();
-                        int totalItemCount = layoutManager.getItemCount();
-                        int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
-                        if (lastVisibleItem >= totalItemCount - visibleItemCount ) {
-                            if (mPage + 1 <= mTotalPages && hasNetwork() && !mFailedPageAdd) {
-                                if (hasNetwork()) {
-                                    mPage++;
-
-                                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
-
-                                    Bundle discoverBundle = new Bundle();
-                                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
-
-                                    LoaderManager loaderManager = getSupportLoaderManager();
-                                    Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
-
-                                    if (discoverMovieLoader == null) {
-                                        loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                                    } else {
-                                        loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                                    }
-                                }
-                            } else {
-                                mFailedPageAdd = true;
-                            }
-                        }
+    private LoaderManager.LoaderCallbacks<Cursor> favoritesLoaderListener = new LoaderManager.LoaderCallbacks<Cursor>() {
+        // https://stackoverflow.com/questions/10524667/android-asynctaskloader-doesnt-start-loadinbackground
+        @NonNull
+        @Override
+        public Loader<Cursor> onCreateLoader(int id, @Nullable final Bundle args) {
+            return new AsyncTaskLoader<Cursor>(mContext) {
+                @Override
+                protected void onStartLoading() {
+                    super.onStartLoading();
+                    if (takeContentChanged()) {
+                        forceLoad();
                     }
                 }
-                super.onScrolled(recyclerView, dx, dy);
+                @Override
+                public Cursor loadInBackground() {
+                    try {
+                        return getContentResolver().query(FavoritesContract.FavoritesEntry.CONTENT_FAVORITES_URI,
+                                null,
+                                null,
+                                null,
+                                null);
+                    } catch (Exception e) {
+                        Log.e("FAVORITES_LOADER", "Failed to load favorites");
+                        e.printStackTrace();
+                        return null;
+                    }
+                }
+                @Override
+                protected void onStopLoading() {
+                    cancelLoad();
+                }
+            };
+        }
+
+        @Override
+        public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
+            if (data.getCount() > 0) {
+                List<Movie> movieList = new ArrayList<>();
+                data.moveToFirst();
+                do {
+                    int id = data.getInt(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_ID
+                    ));
+                    int vote_average = data.getInt(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_VOTE_AVG
+                    ));
+                    String title = data.getString(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_TITLE
+                    ));
+                    String poster_path = data.getString(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_POSTER_PATH
+                    ));
+                    String overview = data.getString(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_OVERVIEW
+                    ));
+                    String release_date = data.getString(data.getColumnIndex(
+                            FavoritesContract.FavoritesEntry.COLUMN_RELEASE_DATE
+                    ));
+                    Movie movie = new Movie(id, title);
+                    movie.setOverview(overview);
+                    movie.setReleaseDate(release_date);
+                    movie.setPosterPath(poster_path);
+                    movie.setVoteAverage(vote_average);
+                    movieList.add(movie);
+                } while (data.moveToNext());
+                if (movieList != null && !movieList.isEmpty()) {
+                    mMovies.clear();
+                    mMovies.addAll(movieList);
+                    mAdapter.notifyDataSetChanged();
+                    mPosters.scrollToPosition(0);
+                }
+            } else {
+                mSortOrder = mPrevSortOrder;
+                mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
+                Toast.makeText(getBaseContext(), getResources().getString(R.string.favorite_empty), Toast.LENGTH_LONG).show();
             }
-        };
-    }
+        }
+
+        @Override
+        public void onLoaderReset(@NonNull Loader<Cursor> loader) {
+
+        }
+    };
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
@@ -251,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
             case R.id.menu_rated:
                 int ratedId = R.string.rated;
                 if (mSortOrder != ratedId && hasNetwork()) {
+                    mPrevSortOrder = mSortOrder;
                     mSortOrder = ratedId;
                     mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
                     if (hasNetwork()) {
@@ -261,13 +310,12 @@ public class MainActivity extends AppCompatActivity {
                         Bundle switchBundle = new Bundle();
                         switchBundle.putString(SWITCH_URL_EXTRA, ratedMovieUrl.toString());
 
-                        LoaderManager loaderManager = getSupportLoaderManager();
-                        Loader<String> switchMovieLoader = loaderManager.getLoader(SWITCH_MOVIE_LOADER);
+                        Loader<String> switchMovieLoader = mLoaderManager.getLoader(SWITCH_MOVIE_LOADER);
 
                         if (switchMovieLoader == null) {
-                            loaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                            mLoaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                         } else {
-                            loaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                            mLoaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                         }
                     }
                 } else {
@@ -277,6 +325,7 @@ public class MainActivity extends AppCompatActivity {
             case R.id.menu_popular:
                 int popularId = R.string.popular;
                 if (mSortOrder != popularId && hasNetwork()) {
+                    mPrevSortOrder = mSortOrder;
                     mSortOrder = popularId;
                     mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
                     if (hasNetwork()) {
@@ -287,14 +336,30 @@ public class MainActivity extends AppCompatActivity {
                         Bundle switchBundle = new Bundle();
                         switchBundle.putString(SWITCH_URL_EXTRA, ratedMovieUrl.toString());
 
-                        LoaderManager loaderManager = getSupportLoaderManager();
-                        Loader<String> switchMovieLoader = loaderManager.getLoader(SWITCH_MOVIE_LOADER);
+                        Loader<String> switchMovieLoader = mLoaderManager.getLoader(SWITCH_MOVIE_LOADER);
 
                         if (switchMovieLoader == null) {
-                            loaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                            mLoaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                         } else {
-                            loaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                            mLoaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                         }
+                    }
+                } else {
+                    Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case R.id.menu_favorite:
+                int favoriteId = R.string.favorite;
+                if (mSortOrder != favoriteId) {
+                    mPrevSortOrder = mSortOrder;
+                    mSortOrder = favoriteId;
+                    mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
+                    Loader<String> favoritesMovieLoader = mLoaderManager.getLoader(FAVORITES_MOVIE_LOADER);
+
+                    if (favoritesMovieLoader == null) {
+                        mLoaderManager.initLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+                    } else {
+                        mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
                     }
                 } else {
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
@@ -311,13 +376,12 @@ public class MainActivity extends AppCompatActivity {
                             Bundle discoverBundle = new Bundle();
                             discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
 
-                            LoaderManager loaderManager = getSupportLoaderManager();
-                            Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+                            Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
 
                             if (discoverMovieLoader == null) {
-                                loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
                             } else {
-                                loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
                             }
                         }
                         Toast.makeText(this, getResources().getString(R.string.page_load), Toast.LENGTH_SHORT).show();
@@ -330,13 +394,12 @@ public class MainActivity extends AppCompatActivity {
                             Bundle switchBundle = new Bundle();
                             switchBundle.putString(SWITCH_URL_EXTRA, ratedMovieUrl.toString());
 
-                            LoaderManager loaderManager = getSupportLoaderManager();
-                            Loader<String> switchMovieLoader = loaderManager.getLoader(SWITCH_MOVIE_LOADER);
+                            Loader<String> switchMovieLoader = mLoaderManager.getLoader(SWITCH_MOVIE_LOADER);
 
                             if (switchMovieLoader == null) {
-                                loaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                                mLoaderManager.initLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                             } else {
-                                loaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
+                                mLoaderManager.restartLoader(SWITCH_MOVIE_LOADER, switchBundle, switchLoaderListener).onContentChanged();
                             }
                         }
                     }
@@ -379,34 +442,110 @@ public class MainActivity extends AppCompatActivity {
 
         mPosters.setItemViewCacheSize(NUM_POSTERS);
 
-        FavoritesDbHelper dbHelper = new FavoritesDbHelper(this);
-        mDb = dbHelper.getWritableDatabase();
+        mLoaderManager = getSupportLoaderManager();
 
-        Cursor cursor = getAllFavorites();
+        switch(mSortOrder) {
+            case R.string.rated:
+                if (hasNetwork()) {
+                    mPage = 1;
 
-        if (hasNetwork()) {
-            mPage = 1;
+                    URL ratedMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
 
-            URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+                    Bundle discoverBundle = new Bundle();
+                    discoverBundle.putString(DISCOVER_URL_EXTRA, ratedMovieUrl.toString());
 
-            Bundle discoverBundle = new Bundle();
-            discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
+                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
 
-            LoaderManager loaderManager = getSupportLoaderManager();
-            Loader<String> discoverMovieLoader = loaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+                    if (discoverMovieLoader == null) {
+                        mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                    } else {
+                        mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                    }
+                }
+                break;
+            case R.string.favorite:
+                Loader<String> favoritesMovieLoader = mLoaderManager.getLoader(FAVORITES_MOVIE_LOADER);
 
-            if (discoverMovieLoader == null) {
-                loaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-            } else {
-                loaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-            }
+                if (favoritesMovieLoader == null) {
+                    mLoaderManager.initLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+                } else {
+                    mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+                }
+                break;
+            default:
+                if (hasNetwork()) {
+                    mPage = 1;
+
+                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+
+                    Bundle discoverBundle = new Bundle();
+                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
+
+                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+
+                    if (discoverMovieLoader == null) {
+                        mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                    } else {
+                        mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                    }
+                }
+                break;
         }
 
         mAdapter = new PosterAdapter(mMovies);
 
         mPosters.setAdapter(mAdapter);
 
-        mPosters.addOnScrollListener(rvScrollListener(layoutManager));
+        mPosters.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                if (mSortOrder != R.string.favorite && dy > 0) {
+                    if (!mLoading) {
+                        int visibleItemCount = layoutManager.getChildCount();
+                        int totalItemCount = layoutManager.getItemCount();
+                        int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
+                        if (lastVisibleItem >= totalItemCount - visibleItemCount ) {
+                            if (mPage + 1 <= mTotalPages && hasNetwork() && !mFailedPageAdd) {
+                                if (hasNetwork()) {
+                                    mPage++;
+
+                                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+
+                                    Bundle discoverBundle = new Bundle();
+                                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
+
+                                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
+
+                                    if (discoverMovieLoader == null) {
+                                        mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                    } else {
+                                        mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
+                                    }
+                                }
+                            } else {
+                                mFailedPageAdd = true;
+                            }
+                        }
+                    }
+                }
+                super.onScrolled(recyclerView, dx, dy);
+            }
+        });
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
+        if (mSortOrder == R.string.favorite) {
+            Loader<String> favoritesMovieLoader = mLoaderManager.getLoader(FAVORITES_MOVIE_LOADER);
+
+            if (favoritesMovieLoader == null) {
+                mLoaderManager.initLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+            } else {
+                mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+            }
+        }
+
     }
 
     // https://developer.android.com/training/monitoring-device-state/connectivity-monitoring
@@ -423,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (!hasConnection) {
-            Toast.makeText(this,getResources().getString(R.string.network_error), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getResources().getString(R.string.network_error), Toast.LENGTH_LONG).show();
             if (mMenu != null) {
                 mMenu.findItem(R.id.menu_refresh).setVisible(true);
             }
@@ -434,17 +573,5 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return hasConnection;
-    }
-
-    private Cursor getAllFavorites() {
-        return mDb.query(
-                FavoritesContract.FavoritesEntry.TABLE_NAME,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
     }
 }

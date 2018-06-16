@@ -8,10 +8,18 @@
     <string name="sort_order">Sort Order</string>
     <string name="popular">Most Popular</string>
     <string name="rated">Top Rated</string>
+    <string name="favorite">Favorites</string>
     <string name="refresh">Refresh</string>
     <string name="already_sorted">Already Sorted</string>
     <string name="page_load">Additional page loaded</string>
     <string name="movie_detail_error">Failed to get movie details</string>
     <string name="network_error">Network connection unavailable</string>
     <string name="video_error">No available application to open video</string>
+    <string name="favorite_added">Added to favorites</string>
+    <string name="favorite_deleted">Removed from favorites</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_delete">Remove from favorites</string>
+    <string name="insert_error">Failed to insert into </string>
+    <string name="unknown_uri">Unknown uri: </string>
+    <string name="favorite_empty">No favorites</string>
 </resources>

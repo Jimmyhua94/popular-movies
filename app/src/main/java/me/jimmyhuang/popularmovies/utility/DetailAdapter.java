@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.database.sqlite.SQLiteDatabase;
+import android.database.Cursor;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
@@ -22,10 +22,8 @@ import com.squareup.picasso.Picasso;
 
 import java.util.List;
 
-import me.jimmyhuang.popularmovies.MainActivity;
 import me.jimmyhuang.popularmovies.R;
 import me.jimmyhuang.popularmovies.data.FavoritesContract;
-import me.jimmyhuang.popularmovies.data.FavoritesDbHelper;
 import me.jimmyhuang.popularmovies.model.Movie;
 import me.jimmyhuang.popularmovies.model.Review;
 import me.jimmyhuang.popularmovies.model.Trailer;
@@ -42,7 +40,7 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     private List<Object> mItems;
 
-    private final View.OnClickListener mTralerOnClickListener = new TrailerClickListener();
+    private final View.OnClickListener mTrailerOnClickListener = new TrailerClickListener();
 
     private Context mContext;
 
@@ -118,7 +116,9 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         private TextView mOverviewText;
         private Button mFavoritesButton;
 
-        private SQLiteDatabase mDb;
+        private Context mContext;
+
+        private Cursor mCursor;
 
         public MovieViewHolder(View itemView) {
             super(itemView);
@@ -129,9 +129,7 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             mRatingText = itemView.findViewById(R.id.detail_rating_tv);
             mOverviewText = itemView.findViewById(R.id.detail_overview_tv);
             mFavoritesButton = itemView.findViewById(R.id.favorites_button);
-
-            FavoritesDbHelper dbHelper = new FavoritesDbHelper(itemView.getContext());
-            mDb = dbHelper.getWritableDatabase();
+            mContext = itemView.getContext();
         }
 
         public void bind(final Movie movie) {
@@ -153,15 +151,55 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             mRatingText.setText(String.valueOf(movie.getVoteAverage()));
             mOverviewText.setText(movie.getOverview());
 
+            updateCursor(movie);
+
             mFavoritesButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    addToFavorites(movie);
+                    if (mCursor.getCount() > 0) {
+                        int deleted = v.getContext()
+                                .getContentResolver()
+                                .delete(FavoritesContract.FavoritesEntry.CONTENT_FAVORITE_URI,
+                                        "id=?",
+                                        new String[]{String.valueOf(movie.getId())}
+                                );
+                        if (deleted > 0) {
+                            Toast.makeText(mContext, mContext.getResources().getString(R.string.favorite_deleted), Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Uri uri = v.getContext()
+                                .getContentResolver()
+                                .insert(FavoritesContract.FavoritesEntry.CONTENT_FAVORITE_URI,
+                                        favoriteContentValues(movie)
+                                );
+                        if (uri != null) {
+                            Toast.makeText(mContext, mContext.getResources().getString(R.string.favorite_added), Toast.LENGTH_LONG).show();
+                        }
+                    }
+                    updateCursor(movie);
                 }
             });
         }
 
-        private long addToFavorites(Movie movie) {
+        private void updateCursor(Movie movie) {
+            if (mCursor != null) mCursor.close();
+            mCursor = mContext.getContentResolver().query(
+                    FavoritesContract.FavoritesEntry.CONTENT_FAVORITES_URI,
+                    null,
+                    "id=?",
+                    new String[]{String.valueOf(movie.getId())},
+                    null
+            );
+            if (mCursor != null) {
+                if (mCursor.getCount() > 0) {
+                    mFavoritesButton.setText(mContext.getResources().getString(R.string.favorite_delete));
+                } else {
+                    mFavoritesButton.setText(mContext.getResources().getString(R.string.favorite_add));
+                }
+            };
+        }
+
+        private ContentValues favoriteContentValues(Movie movie) {
             ContentValues cv = new ContentValues();
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_ID, movie.getId());
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_TITLE, movie.getTitle());
@@ -169,12 +207,7 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_RELEASE_DATE, movie.getReleaseDate());
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_VOTE_AVG, movie.getVoteAverage());
             cv.put(FavoritesContract.FavoritesEntry.COLUMN_POSTER_PATH, movie.getPosterPath());
-            return mDb.insert(FavoritesContract.FavoritesEntry.TABLE_NAME, null, cv);
-        }
-
-        private boolean removeFromFavorites(Movie movie) {
-            return mDb.delete(FavoritesContract.FavoritesEntry.TABLE_NAME,
-                    FavoritesContract.FavoritesEntry.COLUMN_ID + "=" + movie.getId(), null) > 0;
+            return cv;
         }
     }
 
@@ -186,7 +219,7 @@ public class DetailAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             super(itemView);
 
             mVideoText = itemView.findViewById(R.id.trailer_tv);
-            itemView.setOnClickListener(mTralerOnClickListener);
+            itemView.setOnClickListener(mTrailerOnClickListener);
         }
 
         public void bind(Trailer trailer) {

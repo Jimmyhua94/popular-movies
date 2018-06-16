@@ -15,6 +15,10 @@
                 android:orderInCategory="2"
                 android:title="@string/rated"
                 android:id="@+id/menu_rated"/>
+            <item
+                android:orderInCategory="3"
+                android:title="@string/favorite"
+                android:id="@+id/menu_favorite"/>
         </menu>
     </item>
     <item android:title="@string/refresh"
