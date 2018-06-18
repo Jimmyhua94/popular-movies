@@ -260,6 +260,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else {
                 mSortOrder = mPrevSortOrder;
+                chooseLoader();
                 mMenu.findItem(R.id.menu_sort_order).setTitle(getResources().getString(mSortOrder));
                 Toast.makeText(getBaseContext(), getResources().getString(R.string.favorite_empty), Toast.LENGTH_LONG).show();
             }
@@ -440,53 +441,7 @@ public class MainActivity extends AppCompatActivity {
 
         mLoaderManager = getSupportLoaderManager();
 
-        switch(mSortOrder) {
-            case R.string.rated:
-                if (hasNetwork()) {
-                    mPage = 1;
-
-                    URL ratedMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
-
-                    Bundle discoverBundle = new Bundle();
-                    discoverBundle.putString(DISCOVER_URL_EXTRA, ratedMovieUrl.toString());
-
-                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
-
-                    if (discoverMovieLoader == null) {
-                        mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                    } else {
-                        mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                    }
-                }
-                break;
-            case R.string.favorite:
-                Loader<String> favoritesMovieLoader = mLoaderManager.getLoader(FAVORITES_MOVIE_LOADER);
-
-                if (favoritesMovieLoader == null) {
-                    mLoaderManager.initLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
-                } else {
-                    mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
-                }
-                break;
-            default:
-                if (hasNetwork()) {
-                    mPage = 1;
-
-                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
-
-                    Bundle discoverBundle = new Bundle();
-                    discoverBundle.putString(DISCOVER_URL_EXTRA, popularMovieUrl.toString());
-
-                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(DISCOVER_MOVIE_LOADER);
-
-                    if (discoverMovieLoader == null) {
-                        mLoaderManager.initLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                    } else {
-                        mLoaderManager.restartLoader(DISCOVER_MOVIE_LOADER, discoverBundle, discoverLoaderListener).onContentChanged();
-                    }
-                }
-                break;
-        }
+        chooseLoader();
 
         mAdapter = new MainAdapter(mMovies);
 
@@ -541,7 +496,56 @@ public class MainActivity extends AppCompatActivity {
                 mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
             }
         }
+    }
 
+    private void chooseLoader() {
+        switch(mSortOrder) {
+            case R.string.rated:
+                if (hasNetwork()) {
+                    mPage = 1;
+
+                    URL ratedMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+
+                    Bundle discoverBundle = new Bundle();
+                    discoverBundle.putString(SWITCH_URL_EXTRA, ratedMovieUrl.toString());
+
+                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(SWITCH_MOVIE_LOADER);
+
+                    if (discoverMovieLoader == null) {
+                        mLoaderManager.initLoader(SWITCH_MOVIE_LOADER, discoverBundle, switchLoaderListener).onContentChanged();
+                    } else {
+                        mLoaderManager.restartLoader(SWITCH_MOVIE_LOADER, discoverBundle, switchLoaderListener).onContentChanged();
+                    }
+                }
+                break;
+            case R.string.favorite:
+                Loader<String> favoritesMovieLoader = mLoaderManager.getLoader(FAVORITES_MOVIE_LOADER);
+
+                if (favoritesMovieLoader == null) {
+                    mLoaderManager.initLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+                } else {
+                    mLoaderManager.restartLoader(FAVORITES_MOVIE_LOADER, null, favoritesLoaderListener).onContentChanged();
+                }
+                break;
+            default:
+                if (hasNetwork()) {
+                    mPage = 1;
+
+                    URL popularMovieUrl = NetworkUtil.buildDiscoverUrl(mSortOrder, mPage);
+
+                    Bundle discoverBundle = new Bundle();
+                    discoverBundle.putString(SWITCH_URL_EXTRA, popularMovieUrl.toString());
+
+                    Loader<String> discoverMovieLoader = mLoaderManager.getLoader(SWITCH_MOVIE_LOADER);
+
+                    if (discoverMovieLoader == null) {
+                        mLoaderManager.initLoader(SWITCH_MOVIE_LOADER, discoverBundle, switchLoaderListener).onContentChanged();
+                    } else {
+                        mLoaderManager.restartLoader(SWITCH_MOVIE_LOADER, discoverBundle, switchLoaderListener).onContentChanged();
+                    }
+                }
+                break;
+        }
     }
 
     // https://developer.android.com/training/monitoring-device-state/connectivity-monitoring
