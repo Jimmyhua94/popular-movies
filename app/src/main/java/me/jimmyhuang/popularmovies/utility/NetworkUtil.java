@@ -17,15 +17,86 @@ public class NetworkUtil {
     private final static String MOVIE_PATH = "movie";
     private final static String POPULAR_PATH = "popular";
     private final static String RATED_PATH = "top_rated";
-
+    private final static String VIDEO_PATH = "videos";
+    private final static String REVIEW_PATH = "reviews";
     private final static String PARAM_API_KEY = "api_key";
-
     private final static String PARAM_PAGE = "page";
-
-    private final static String POSTER_BASE_URL = "http://image.tmdb.org/t/p";
-
+    private final static String POSTER_BASE_URL = "https://image.tmdb.org/t/p";
     private final static String POSTER_SIZE = "w185";
 
+    private final static String YOUTUBE_PROTOCOL = "https";
+    private final static String YOUTUBE_IMG_SUB = "img.";
+    private final static String YOUTUBE_BASE_URL = "youtube.com";
+    private final static String YOUTUBE_WATCH_PART = "watch";
+    private final static String YOUTUBE_VIDEO_PARAM = "v";
+    private final static String YOUTUBE_IMG_PART = "vi";
+    private final static String YOUTUBE_JPG_PART = "1.jpg";
+
+    public static Uri buildYoutubeVideoUri(String id) {
+        Uri.Builder builder = new Uri.Builder()
+                .scheme(YOUTUBE_PROTOCOL).authority(YOUTUBE_BASE_URL);
+
+        Uri uri = builder.appendEncodedPath(YOUTUBE_WATCH_PART)
+                .appendQueryParameter(YOUTUBE_VIDEO_PARAM, id)
+                .build();
+
+        return uri;
+    }
+
+    public static URL buildYoutubeImageUrl(String id) {
+        Uri.Builder builder = new Uri.Builder()
+                .scheme(YOUTUBE_PROTOCOL).authority(YOUTUBE_IMG_SUB + YOUTUBE_BASE_URL);
+
+        Uri uri = builder.appendEncodedPath(YOUTUBE_IMG_PART)
+                .appendEncodedPath(id)
+                .appendEncodedPath(YOUTUBE_JPG_PART)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(uri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+    public static URL buildTrailerUrl(int id) {
+        Uri uri = Uri.parse(BASE_URL).buildUpon()
+                .appendEncodedPath(MOVIE_PATH)
+                .appendEncodedPath(String.valueOf(id))
+                .appendEncodedPath(VIDEO_PATH)
+                .appendQueryParameter(PARAM_API_KEY, BuildConfig.MovieDbApiKey)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(uri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+    public static URL buildReviewUrl(int id) {
+        Uri uri = Uri.parse(BASE_URL).buildUpon()
+                .appendEncodedPath(MOVIE_PATH)
+                .appendEncodedPath(String.valueOf(id))
+                .appendEncodedPath(REVIEW_PATH)
+                .appendQueryParameter(PARAM_API_KEY, BuildConfig.MovieDbApiKey)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(uri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
 
     public static URL buildPosterUrl(String path) {
         Uri.Builder uriBuilder = Uri.parse(POSTER_BASE_URL).buildUpon()
