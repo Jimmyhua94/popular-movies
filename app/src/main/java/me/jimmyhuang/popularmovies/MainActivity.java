@@ -2,7 +2,6 @@ package me.jimmyhuang.popularmovies;
 
 import android.content.Context;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.support.annotation.NonNull;
@@ -27,10 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import me.jimmyhuang.popularmovies.data.FavoritesContract;
-import me.jimmyhuang.popularmovies.data.FavoritesDbHelper;
 import me.jimmyhuang.popularmovies.model.Movie;
 import me.jimmyhuang.popularmovies.utility.NetworkUtil;
-import me.jimmyhuang.popularmovies.utility.PosterAdapter;
+import me.jimmyhuang.popularmovies.utility.MainAdapter;
 import me.jimmyhuang.popularmovies.utility.PosterItemDecoration;
 
 import static me.jimmyhuang.popularmovies.utility.JsonUtil.parseDiscoverJson;
@@ -52,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
     private final int POSTER_SPAN = 1;  // Value doesn't matter, gets auto detected
 
     private RecyclerView mPosters;
-    private PosterAdapter mAdapter;
+    private MainAdapter mAdapter;
     private final List<Movie> mMovies = new ArrayList<>();
     private int mSortOrder;
     private int mPrevSortOrder;
@@ -116,10 +114,8 @@ public class MainActivity extends AppCompatActivity {
                 if (mTotalPages == 0) mTotalPages = parseDiscoverTotalPagesJson(data);
                 List<Movie> movieList = parseDiscoverJson(data);
                 if (movieList != null) {
-                    mMovies.clear();
                     mMovies.addAll(movieList);
                     mAdapter.notifyDataSetChanged();
-                    mPosters.scrollToPosition(0);
                 }
             }
         }
@@ -492,7 +488,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
 
-        mAdapter = new PosterAdapter(mMovies);
+        mAdapter = new MainAdapter(mMovies);
 
         mPosters.setAdapter(mAdapter);
 

@@ -22,4 +22,6 @@
     <string name="insert_error">Failed to insert into </string>
     <string name="unknown_uri">Unknown uri: </string>
     <string name="favorite_empty">No favorites</string>
+    <string name="trailer_title">Trailers</string>
+    <string name="review_title">Reviews</string>
 </resources>

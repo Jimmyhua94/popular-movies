@@ -2,10 +2,8 @@ package me.jimmyhuang.popularmovies.utility;
 
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,7 +21,7 @@ import me.jimmyhuang.popularmovies.model.Movie;
 import static me.jimmyhuang.popularmovies.utility.NetworkUtil.buildPosterUrl;
 
 
-public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterViewHolder> {
+public class MainAdapter extends RecyclerView.Adapter<MainAdapter.PosterViewHolder> {
 
     public static final String MOVIE_INTENT_EXTRA = "MovieObject";
 
@@ -31,11 +29,11 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
 
     private RecyclerView mRecyclerView;
 
+    private Context mContext;
+
     private final List<Movie> mMovies;
 
-    private Picasso picasso;
-
-    public PosterAdapter(List<Movie> movies) {
+    public MainAdapter(List<Movie> movies) {
         mMovies = movies;
     }
 
@@ -45,16 +43,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
 
         mRecyclerView = rv;
 
-        Context context = rv.getContext();
-
-        Picasso.Builder builder = new Picasso.Builder(context);
-        builder.listener(new Picasso.Listener() {
-            @Override
-            public void onImageLoadFailed(Picasso picasso, Uri uri, Exception exception) {
-                Log.e("URL", exception.toString());
-            }
-        });
-        picasso = builder.build();
+        mContext = rv.getContext();
     }
 
     @Override @NonNull
@@ -63,8 +52,6 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
         LayoutInflater inflater = LayoutInflater.from(context);
 
         View view = inflater.inflate(R.layout.adapter_poster, parent, false);
-
-        view.setOnClickListener(mOnClickListener);
 
         return new PosterViewHolder(view);
     }
@@ -89,6 +76,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
 
             posterTextView = itemView.findViewById(R.id.poster_tv);
             posterView = itemView.findViewById(R.id.poster_iv);
+            itemView.setOnClickListener(mOnClickListener);
         }
 
         private void bind(int position) {
@@ -98,7 +86,7 @@ public class PosterAdapter extends RecyclerView.Adapter<PosterAdapter.PosterView
                 String posterTitle = movie.getTitle();
                 posterTextView.setText(posterTitle);
                 if (!posterUrl.isEmpty()) {
-                    picasso.load(buildPosterUrl(posterUrl).toString()).fit().into(posterView);
+                    Picasso.with(mContext).load(buildPosterUrl(posterUrl).toString()).fit().into(posterView);
                 }
             }
         }
